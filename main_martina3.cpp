@@ -125,10 +125,6 @@ int main(int argc, const char * argv[]) {
     localFolder.append(str1); localFolder.append(argv[1]);
     localFolder.append("_"); localFolder.append(argv[2]); localFolder.append("/");
 
-
-
-
-
     // Print important parameters
     printHeader(N,delta,localFolder);
 
@@ -176,8 +172,8 @@ int main(int argc, const char * argv[]) {
     // Make the C matrix (order parameter)
     // Interfacial width of 4. grid points
     mat C(N+4,N+4);
-    T int_width = 4.
-    vec c_x = 1-tanh((x_vec - x0)/int_width))/2;
+    T int_width = 4.;
+    vec c_x = (1-tanh((x_vec - x0)/int_width))/2;
     rowvec c_vec = c_x.t();
     C = repmat(c_vec,N+4,1);
     C.save(localFolder + "Cini.dat", raw_ascii);
@@ -197,6 +193,12 @@ int main(int argc, const char * argv[]) {
     // Impose mobility and tpb regions
     mat M = ones(N+4,N+4);
     mat tpbRegion(size(C(span(4,end-4),span(4,end-4))));
+
+    // Calculate here tpb region
+    tpbRegion.elem(find(C(span(4,end-4),span(4,end-4)) > 0.2 && C(span(4,end-4),span(4,end-4)) < 0.8 &&
+                            Psi(span(4,end-4),span(4,end-4)) > 0.2 && Psi(span(4,end-4),span(4,end-4)) < 0.8)).ones();
+    tpbRegion.save(localFolder + "tpbRegion.dat", raw_ascii);
+
 
     // Solver
     lint keepAngle = 0;
@@ -291,10 +293,8 @@ int main(int argc, const char * argv[]) {
 
     if (iTT%1000 == 0) {
 
+        // Increment
         ++keepMeasuredThea;
-        tpbRegion.zeros();
-        tpbRegion.elem(find(C(span(4,end-4),span(4,end-4)) > 0.2 && C(span(4,end-4),span(4,end-4)) < 0.8 &&
-                            Psi(span(4,end-4),span(4,end-4)) > 0.2 && Psi(span(4,end-4),span(4,end-4)) < 0.8)).ones();
 
         mat den = ((1/modGradC)%(1/modGradPsi));
         mat num = (dxC%dxPsi+dyC%dyPsi);
