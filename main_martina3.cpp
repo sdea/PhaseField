@@ -138,7 +138,7 @@ int main(int argc, const char * argv[]) {
     T dt = 1e-5;
     lint Time = 1;
 
-    T Q = 1./2.;
+    T Q = 1./8.;
     lint bcType = 1;
     T eps = 1.;
 
@@ -174,9 +174,12 @@ int main(int argc, const char * argv[]) {
     Psi.save(localFolder + "Psi.dat", raw_ascii);
 
     // Make the C matrix (order parameter)
+    // Interfacial width of 4. grid points
     mat C(N+4,N+4);
-    C.zeros();
-    C(span(0, end), span(0,((N+4)/2)-1)).ones();
+    T int_width = 4.
+    vec c_x = 1-tanh((x_vec - x0)/int_width))/2;
+    rowvec c_vec = c_x.t();
+    C = repmat(c_vec,N+4,1);
     C.save(localFolder + "Cini.dat", raw_ascii);
 
     // Compute the gradient of Psi and the term dPsi/Psi
