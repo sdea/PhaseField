@@ -15,9 +15,9 @@ using namespace std;
 typedef double T;
 typedef long int  lint;
 
-// Function to perform derivatives
 
-// Laplacian derivative
+/// Function to perform derivatives
+/// Laplacian operator
 mat d2x_2D(mat const& C, T const& h) {
 
 
@@ -28,11 +28,12 @@ mat d2x_2D(mat const& C, T const& h) {
     mat out2 = C(span(2,end-2),span(3,end-1)) + C(span(2,end-2), span(1,end-3));
     mat outCenter = 4*C(span(2,end-2),span(2,end-2));
 
+
     return (out1 - outCenter + out2)/(h*h);
 
 }
 
-// Function for gradient in 2D
+/// Function for gradient in 2D
 mat gradx(mat const& C, T const& h) {
 
     // !!!! Only works for square matrix !!!
@@ -53,7 +54,7 @@ mat grady(mat const& C, T const& h) {
 
 
 
-// BiHarmonic derivative
+/// BiHarmonic operator
 mat d4x_2D(mat const& C, T const& h) {
 
     lint end = C.n_rows -1;
@@ -69,16 +70,30 @@ mat d4x_2D(mat const& C, T const& h) {
 
 }
 
+
+/// Covert radiant to deg
 T convToDeg(T rad_angle) {
 
     return ((T)180/datum::pi)*rad_angle;
 
 }
 
+/// Print header function
+void printHeader(lint& N, T& delta, std::string& def_str) {
+
+
+    cout << "\n#######################################################\n" << std::endl;
+    cout << "P H A S E  F I E L D  C A L C U L A T I O N\n" << std::endl;
+    cout << "Contact angle calculation based on the SBM method\n" << std::endl;
+    cout << "Code written by: Salvatore De Angelis & Martina Trini\n" << std::endl;
+
+    cout << "PARAMETERS:  \nDomain size:  " << N << "  Delta:  " << delta << std::endl;
+    cout << "Writing output in:  " << def_str << std::endl;
+}
+
+
 int main(int argc, const char * argv[]) {
 
-    // Matrix creation
-    cout << "Contact angle calculation started!!!" << std::endl;
 
     // Parameters of simulation
     if (argc != 3) {
@@ -90,10 +105,32 @@ int main(int argc, const char * argv[]) {
 
     }
 
+
     // Reading parameters from command line
     lint N = atoi(argv[1]);
     T delta = atof(argv[2]);
-    cout << "Delta:  " << delta << std::endl;
+
+    // Create directory related to delta
+    std::string str1 = "output_";
+    std::string def_str;
+
+    // Making directory for every delta and dimension
+    def_str.append("mkdir output/"); def_str.append(str1); def_str.append(argv[1]);
+    def_str.append("_"); def_str.append(argv[2]);
+    system(def_str.c_str());
+
+    // Local (in loop) output folder
+    std::string localFolder;
+    localFolder.append("output/");
+    localFolder.append(str1); localFolder.append(argv[1]);
+    localFolder.append("_"); localFolder.append(argv[2]); localFolder.append("/");
+
+
+
+
+
+    // Print important parameters
+    printHeader(N,delta,localFolder);
 
 
     // lint N = 100;
@@ -101,7 +138,7 @@ int main(int argc, const char * argv[]) {
     T dt = 1e-5;
     lint Time = 1;
 
-    T Q = 1.;
+    T Q = 1./8.;
     lint bcType = 1;
     T eps = 1.;
 
@@ -116,34 +153,34 @@ int main(int argc, const char * argv[]) {
     // Geometry using subslicing
     geom(span(((N+4)/2-1),end), span(0,end)).ones();
     geom(span(0,((N+4)/2-2)), span(0,((N+4)/2)-1)).fill(2.);
-    geom.save("InitGeometry.dat", raw_ascii);
+    geom.save(localFolder + "InitialGeometry.dat", raw_ascii);
 
     // Contact angle values
     T theta = ((T)100/(T)180)*datum::pi;
     T cosTheta = cos(theta);
-    cout << "Theta:  " << theta << "  Cos(theta):  " << cosTheta <<std::endl;
+
+    // Print contact angles
+    cout << "\nTheta:  " << theta << "  Cos(theta):  \n" << cosTheta <<std::endl;
 
     // Make order parameter Psi
     Col<T> x_vec(N+4);
     x_vec = linspace<vec>(1,N+4,(N+4));
-    x_vec.save("x_vec.dat", raw_ascii);
     T x0 = (T)(N+4)/2;
 
     // Popolate the matrix
     mat Psi(N+4,N+4);
     vec psi_x = (1-tanh((x_vec - x0)/delta))/2;
-    psi_x.save("psi_x.dat", raw_ascii);
-    //mat psi_x = psi_x_vec.t();
-    //psi_xT.save("psi_xT.dat", raw_ascii);
     Psi = repmat(psi_x,1,N+4);
-    cout << Psi.n_cols << "  " <<Psi.n_rows << std::endl;
-    Psi.save("Psi.dat", raw_ascii);
+    Psi.save(localFolder + "Psi.dat", raw_ascii);
 
     // Make the C matrix (order parameter)
+    // Interfacial width of 4. grid points
     mat C(N+4,N+4);
-    C.zeros();
-    C(span(0, end), span(0,((N+4)/2)-1)).ones();
-    C.save("Cini.dat", raw_ascii);
+    T int_width = 4.
+    vec c_x = 1-tanh((x_vec - x0)/int_width))/2;
+    rowvec c_vec = c_x.t();
+    C = repmat(c_vec,N+4,1);
+    C.save(localFolder + "Cini.dat", raw_ascii);
 
     // Compute the gradient of Psi and the term dPsi/Psi
     mat invPsi = 1./Psi;
@@ -152,13 +189,14 @@ int main(int argc, const char * argv[]) {
     mat modGradPsi = sqrt(dxPsi%dxPsi + dyPsi%dyPsi);
     mat dxPsiOvPsi = invPsi(span(2,end-2),span(2,end-2))%dxPsi;
     mat dyPsiOvPsi = invPsi(span(2,end-2),span(2,end-2))%dyPsi;
-    invPsi.save("invPsi.dat", raw_ascii);
-    dxPsi.save("dxPsi.dat", raw_ascii);
-    modGradPsi.save("modGradPsi.dat", raw_ascii);
-    dxPsiOvPsi.save("dxPsiOvPsi.dat", raw_ascii);
+    invPsi.save(localFolder + "invPsi.dat", raw_ascii);
+    dxPsi.save(localFolder + "dxPsi.dat", raw_ascii);
+    modGradPsi.save(localFolder + "modGradPsi.dat", raw_ascii);
+    dxPsiOvPsi.save(localFolder + "dxPsiOvPsi.dat", raw_ascii);
 
-    // Impose mobility
+    // Impose mobility and tpb regions
     mat M = ones(N+4,N+4);
+    mat tpbRegion(size(C(span(4,end-4),span(4,end-4))));
 
     // Solver
     lint keepAngle = 0;
@@ -166,17 +204,29 @@ int main(int argc, const char * argv[]) {
     lint showIm = 0;
     mat F(N+4,N+4);
     mat dF(N+4,N+4);
+    mat Ffunc;
+    T SumFfunc;
 
     // Criteria of convergence
-    T criterion = 10.;
     vec Ft_arma;
     std::vector<T> Ft;
     T new_meas_theta = 1;
     T old_meas_theta = 1;
     std::vector<T> MeasuredTheta;
     rowvec Measuredtheta_arma;
+    T meas_theta;
+    T contact_cos;
+    vec vec_contact;
 
-    for (lint iTT = 1; iTT < 50000; ++iTT) {
+    // Convergenze criteria
+    T error = 1.;
+
+    // Max iteration
+    T numIt = 5000.;
+    lint maxIter = (lint) (numIt/dt);
+    lint afterN = 100000;
+
+    for (lint iTT = 1; iTT < maxIter; ++iTT) {
 
         //cout << "Iteration:  " << iTT*dt << std::endl;
 
@@ -227,38 +277,28 @@ int main(int argc, const char * argv[]) {
 
 
 
-	if (iTT%2 == 0){
+	if (iTT%10000 == 0){
 
         ++keepAngle;
-        mat Ffunc = F(span(2,end-2),span(2,end-2)) + ((eps*eps/2)*modGradC%modGradC);
-        T SumFfunc = accu(Ffunc);
+        Ffunc = F(span(2,end-2),span(2,end-2)) + ((eps*eps/2)*modGradC%modGradC);
+        SumFfunc = accu(Ffunc);
 
         Ft.push_back(SumFfunc);
-        // cout << "Ft:  " << Ft[keepAngle -1] << std::endl;
 
-}
+        }
 
-    // Contact angle based on Chen et al.
-    mat tpbRegion(size(C(span(4,end-4),span(4,end-4))));
-    tpbRegion.zeros();
-
-    T meas_theta;
-    T contact_cos;
-    vec vec_contact;
 
 
     if (iTT%1000 == 0) {
 
         ++keepMeasuredThea;
-        tpbRegion.elem(find(C(span(4,end-4),span(4,end-4)) > 0.1 && C(span(4,end-4),span(4,end-4)) < 0.9 &&
-                            Psi(span(4,end-4),span(4,end-4)) > 0.1 && Psi(span(4,end-4),span(4,end-4)) < 0.9)).ones();
-
-        tpbRegion.save("tpbRegion.dat", raw_ascii);
+        tpbRegion.zeros();
+        tpbRegion.elem(find(C(span(4,end-4),span(4,end-4)) > 0.2 && C(span(4,end-4),span(4,end-4)) < 0.8 &&
+                            Psi(span(4,end-4),span(4,end-4)) > 0.2 && Psi(span(4,end-4),span(4,end-4)) < 0.8)).ones();
 
         mat den = ((1/modGradC)%(1/modGradPsi));
         mat num = (dxC%dxPsi+dyC%dyPsi);
         mat MeasuredCos = num%den;
-        MeasuredCos.save("MCos.dat", raw_ascii);
 
         // Select area where to compute conctact angle
         vec_contact = MeasuredCos.elem(find(tpbRegion == 1.));
@@ -266,28 +306,37 @@ int main(int argc, const char * argv[]) {
         meas_theta = convToDeg(acos(-contact_cos));
         MeasuredTheta.push_back(meas_theta);
 
+        // Convergence criteria
         new_meas_theta = meas_theta;
-        cout << "measured theta:  " << meas_theta << std::endl;
-        T error = abs((new_meas_theta - old_meas_theta)/new_meas_theta);
+        error = abs(new_meas_theta - old_meas_theta);
 
         old_meas_theta = new_meas_theta;
-        // cout << "measured error:  " << error << std::endl;
+
+        uvec region = find(tpbRegion == 1);
+        cout << "Iteration:  " << iTT  <<"  Measured theta:  " << meas_theta
+                <<"  Region:  " << region.n_elem <<"  Error:  " << error <<  std::endl;
+
+
+        if (iTT > afterN) {
+            if (error < 1e-06) {
+
+                cout << "Simulation finished!!!" << std::endl;
+                break;
+            }
+        }
 
 	}
-
-
-    // if (criterion < 1e-6)
-    // break;
 
 } // End of for loop
 
 
+cout << "Writing output...  " << std::endl;
+
 Ft_arma = conv_to<vec>::from(Ft);
-Ft_arma.save("Ft.dat", raw_ascii);
+Ft_arma.save(localFolder + "Ft.dat", raw_ascii);
 vec Mtheta = conv_to<vec>::from(MeasuredTheta);
-Mtheta.save("MTheta.dat", raw_ascii);
-x_vec.print();
-C.save("Cend.dat", raw_ascii);
+Mtheta.save(localFolder + "MTheta.dat", raw_ascii);
+C.save(localFolder + "Cend.dat", raw_ascii);
 
 
 
