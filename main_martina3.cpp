@@ -290,8 +290,8 @@ int main(int argc, const char * argv[]) {
 
         ++keepMeasuredThea;
         tpbRegion.zeros();
-        tpbRegion.elem(find(C(span(4,end-4),span(4,end-4)) > 0.1 && C(span(4,end-4),span(4,end-4)) < 0.9 &&
-                            Psi(span(4,end-4),span(4,end-4)) > 0.1 && Psi(span(4,end-4),span(4,end-4)) < 0.9)).ones();
+        tpbRegion.elem(find(C(span(4,end-4),span(4,end-4)) > 0.2 && C(span(4,end-4),span(4,end-4)) < 0.8 &&
+                            Psi(span(4,end-4),span(4,end-4)) > 0.2 && Psi(span(4,end-4),span(4,end-4)) < 0.8)).ones();
 
         mat den = ((1/modGradC)%(1/modGradPsi));
         mat num = (dxC%dxPsi+dyC%dyPsi);
@@ -310,8 +310,9 @@ int main(int argc, const char * argv[]) {
         old_meas_theta = new_meas_theta;
 
         uvec region = find(tpbRegion == 1);
-        cout << "Iteration:  " << iTT  <<"  Measured theta:  " << meas_theta << "  Error:  " << error <<  std::endl;
-        cout << "Iteration:  " << iTT <<"  Region dim:  " << region.n_elem  << std::endl;
+        cout << "Iteration:  " << iTT  <<"  Measured theta:  " << meas_theta
+                <<"  Region:  " << region.n_elem <<"  Error:  " << error <<  std::endl;
+
 
         if (iTT > afterN) {
             if (error < 1e-06) {
@@ -322,9 +323,6 @@ int main(int argc, const char * argv[]) {
         }
 
 	}
-
-
-
 
 } // End of for loop
 
