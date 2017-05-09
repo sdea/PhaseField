@@ -215,6 +215,7 @@ int main(int argc, const char * argv[]) {
     // Max iteration
     T numIt = 5000.;
     lint maxIter = (lint) (numIt/dt);
+    lint afterN = 100000;
 
     for (lint iTT = 1; iTT < maxIter; ++iTT) {
 
@@ -274,7 +275,7 @@ int main(int argc, const char * argv[]) {
         T SumFfunc = accu(Ffunc);
 
         Ft.push_back(SumFfunc);
-        // cout << "Ft:  " << Ft[keepAngle -1] << std::endl;
+
 
 }
 
@@ -309,10 +310,12 @@ int main(int argc, const char * argv[]) {
         old_meas_theta = new_meas_theta;
         cout << "Iteration:  " << iTT  <<"  Measured theta:  " << meas_theta << "  Error:  " << error <<  std::endl;
 
-        if (error < 1e-08) {
+        if (iTT > afterN) {
+            if (error < 1e-06) {
 
-            cout << "Simulation finished!!!" << std::endl;
-            break;
+                cout << "Simulation finished!!!" << std::endl;
+                break;
+            }
         }
 
 	}
