@@ -138,7 +138,7 @@ int main(int argc, const char * argv[]) {
     T dt = 1e-5;
     lint Time = 1;
 
-    T Q = 1.;
+    T Q = 1./2.;
     lint bcType = 1;
     T eps = 1.;
 
