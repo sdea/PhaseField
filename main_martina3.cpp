@@ -191,8 +191,9 @@ int main(int argc, const char * argv[]) {
     modGradPsi.save(localFolder + "modGradPsi.dat", raw_ascii);
     dxPsiOvPsi.save(localFolder + "dxPsiOvPsi.dat", raw_ascii);
 
-    // Impose mobility
+    // Impose mobility and tpb regions
     mat M = ones(N+4,N+4);
+    mat tpbRegion(size(C(span(4,end-4),span(4,end-4))));
 
     // Solver
     lint keepAngle = 0;
@@ -200,6 +201,8 @@ int main(int argc, const char * argv[]) {
     lint showIm = 0;
     mat F(N+4,N+4);
     mat dF(N+4,N+4);
+    mat Ffunc;
+    T SumFfunc;
 
     // Criteria of convergence
     vec Ft_arma;
@@ -208,6 +211,9 @@ int main(int argc, const char * argv[]) {
     T old_meas_theta = 1;
     std::vector<T> MeasuredTheta;
     rowvec Measuredtheta_arma;
+    T meas_theta;
+    T contact_cos;
+    vec vec_contact;
 
     // Convergenze criteria
     T error = 1.;
@@ -268,29 +274,22 @@ int main(int argc, const char * argv[]) {
 
 
 
-	if (iTT%2 == 0){
+	if (iTT%10000 == 0){
 
         ++keepAngle;
-        mat Ffunc = F(span(2,end-2),span(2,end-2)) + ((eps*eps/2)*modGradC%modGradC);
-        T SumFfunc = accu(Ffunc);
+        Ffunc = F(span(2,end-2),span(2,end-2)) + ((eps*eps/2)*modGradC%modGradC);
+        SumFfunc = accu(Ffunc);
 
         Ft.push_back(SumFfunc);
 
+        }
 
-}
-
-    // Contact angle based on Chen et al.
-    mat tpbRegion(size(C(span(4,end-4),span(4,end-4))));
-    tpbRegion.zeros();
-
-    T meas_theta;
-    T contact_cos;
-    vec vec_contact;
 
 
     if (iTT%1000 == 0) {
 
         ++keepMeasuredThea;
+        tpbRegion.zeros();
         tpbRegion.elem(find(C(span(4,end-4),span(4,end-4)) > 0.1 && C(span(4,end-4),span(4,end-4)) < 0.9 &&
                             Psi(span(4,end-4),span(4,end-4)) > 0.1 && Psi(span(4,end-4),span(4,end-4)) < 0.9)).ones();
 
@@ -304,11 +303,15 @@ int main(int argc, const char * argv[]) {
         meas_theta = convToDeg(acos(-contact_cos));
         MeasuredTheta.push_back(meas_theta);
 
+        // Convergence criteria
         new_meas_theta = meas_theta;
-        T error = abs((new_meas_theta - old_meas_theta)/new_meas_theta);
+        error = abs(new_meas_theta - old_meas_theta);
 
         old_meas_theta = new_meas_theta;
+
+        uvec region = find(tpbRegion == 1);
         cout << "Iteration:  " << iTT  <<"  Measured theta:  " << meas_theta << "  Error:  " << error <<  std::endl;
+        cout << "Iteration:  " << iTT <<"  Region dim:  " << region.n_elem  << std::endl;
 
         if (iTT > afterN) {
             if (error < 1e-06) {
