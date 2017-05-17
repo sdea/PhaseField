@@ -83,6 +83,14 @@ void printHeader(lint& N, T& delta, std::string& def_str) {
     cout << "Writing output in:  " << def_str << std::endl;
 }
 
+ void print3Dmat(cube& matrix, std::string filename, int dim) {
+
+        cube exp_geom = reshape(matrix, 1,1, dim*dim*dim);
+        mat col_geom = exp_geom.slice(2);
+        exp_geom.save(filename, arma::raw_ascii);
+
+ }
+
 
 int main(int argc, const char * argv[]) {
 
@@ -102,7 +110,9 @@ int main(int argc, const char * argv[]) {
 
     geom.load(nameGeom,arma::raw_binary);
     geom.reshape(101,101,101);
-    //geom.save("geom.mat", arma_ascii,101);
+
+    // test
+    print3Dmat(geom, "test.dat", 101);
 
     cube Cini;
     std::string nameCini = "Cini.bin";
