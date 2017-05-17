@@ -63,24 +63,6 @@ cube gradz(cube const& C, T const& h) {
 }
 
 
-
-/// BiHarmonic operator
-/*mat d4x_2D(mat const& C, T const& h) {
-
-    lint end = C.n_rows -1;
-
-    //  Computation using compact stencil
-    mat out1 = C(span(4,end),span(2,end-2)) - 4*C(span(3,end-1),span(2,end-2)) - 4*C(span(1,end-3),span(2,end-2)) + C(span(0,end-4),span(2,end-2));
-    mat out2 = C(span(2,end-2),span(4,end)) -4*C(span(2,end-2),span(3,end-1)) - 4*C(span(2,end-2),span(1,end-3)) + C(span(2,end-2),span(0,end-4));
-    mat outCenter = 12*C(span(2,end-2),span(2,end-2));
-
-    T h2 = h*h;
-
-    return (out1 + outCenter + out2)/(h2*h2);
-
-}*/
-
-
 /// Covert radiant to deg
 T convToDeg(T rad_angle) {
 
@@ -135,35 +117,6 @@ int main(int argc, const char * argv[]) {
     Psi.reshape(101,101,101);
 
 
-
-    /*/// Reading parameters from command line
-    //lint N = atoi(argv[1]);
-    T delta = atof(argv[2]);
-
-    // Create directory related to delta
-    std::string str1 = "output_";
-    std::string def_str;
-
-    // Making directory for every delta and dimension
-    def_str.append("mkdir output/"); def_str.append(str1); def_str.append(argv[1]);
-    def_str.append("_"); def_str.append(argv[2]);
-    system(def_str.c_str());
-
-    // Local (in loop) output folder
-    std::string localFolder;
-    localFolder.append("output/");
-    localFolder.append(str1); localFolder.append(argv[1]);
-    localFolder.append("_"); localFolder.append(argv[2]); localFolder.append("/");
-
-
-
-
-
-    // Print important parameters
-    printHeader(N,delta,localFolder);*/
-
-
-
     T h = 0.2;
     T dt = 1e-6;
     lint Time = 1;
@@ -215,18 +168,6 @@ int main(int argc, const char * argv[]) {
     vec Ft_arma;
     std::vector<T> Ft;
 
-    /*// Criteria of convergence
-    vec Ft_arma;
-    std::vector<T> Ft;
-    T new_meas_theta = 1;
-    T old_meas_theta = 1;
-    std::vector<T> MeasuredTheta;
-    rowvec Measuredtheta_arma;
-
-    // Convergenze criteria
-    T error = 1.;*/
-
-    // Max iteration
     T numIt = 5000.;
     lint maxIter = (lint) (numIt/dt);
 
