@@ -69,6 +69,27 @@ T convToDeg(T rad_angle) {
 
 }
 
+/// Surface mobility function
+
+cube SM(T Mob, cube C, cube Psi) {
+
+    cube M = zeros(size(Psi));
+        for(int i = 0; i < Psi.n_rows; i++){
+            for(int j = 0; j < Psi.n_cols; j++){
+                for(int k = 0; k < Psi.n_slices; k++){
+                    if (C(i,j,k) > 0.1 && C(i,j,k) < 0.9){
+
+                M(i,j,k) = Mob*C(i,j,k)*C(i,j,k)*(1-C(i,j,k)*C(i,j,k))*pow(Psi(i,j,k),6)*((10*Psi(i,j,k)*Psi(i,j,k))*(10*Psi(i,j,k)*Psi(i,j,k))-15*Psi(i,j,k)+6);
+
+                }// End if
+            } // End for depth
+        } // End for cols
+    } // End for rows
+
+    return (M);
+
+}
+
 /// Print header function
 void printHeader(lint& N, T& delta, std::string& def_str) {
 
@@ -90,7 +111,6 @@ void printHeader(lint& N, T& delta, std::string& def_str) {
 
  }
 
-
 int main(int argc, const char * argv[]) {
 
 
@@ -103,6 +123,30 @@ int main(int argc, const char * argv[]) {
         return -1;
 
     }
+
+    // Reading parameters from command line
+    // lint N = atoi(argv[1]);
+    // T delta = atof(argv[2]);
+
+    // Create directory related to delta
+    std::string str1 = "output_";
+    std::string def_str;
+
+    // Making directory for every delta and dimension
+    def_str.append("mkdir output/"); /*def_str.append(str1); def_str.append(argv[1]);*/
+    // def_str.append("_"); def_str.append(argv[2]);
+    system(def_str.c_str());
+
+    // Local (in loop) output folder
+    std::string localFolder;
+    localFolder.append("output/");
+    // localFolder.append(str1); localFolder.append(argv[1]);
+    // localFolder.append("_"); localFolder.append(argv[2]); localFolder.append("/");
+
+    // Print important parameters
+    // printHeader(N,delta,localFolder);
+    // printHeader(localFolder);
+
 
     cube geom;
     std::string nameGeom = "geom.bin";
@@ -160,8 +204,12 @@ int main(int argc, const char * argv[]) {
     print3Dmat(dxPsiOvPsi, "dxPsiOvPsi.dat", 97);
     print3Dmat(modGradPsi, "modGradPsi.dat", 97);
 
-    // Impose mobility
-    cube M = ones(size(Cini));
+    // Mobility
+    cube M(size(Cini));
+    cube dMC(size(Cini));
+    T Mob = 6.;
+    cube G(size(Cini));
+    cube dGPsi(size(Cini));
 
     // Solver
     lint keepFfunc = 0;
@@ -186,10 +234,17 @@ int main(int argc, const char * argv[]) {
         F = (W/2)*C%C%(1-C)%(1-C);
         dF = W*(1-C)%(1-2*C)%C;
 
+        // Mobility function
+        M = SM(Mob,C,Psi);
+
         // Derivatives of mobility
-        cube dxM = gradx(M,h);
-        cube dyM = grady(M,h);
-        cube dzM = gradz(M,h);
+        dMC = 2*C-4*C%C%C;
+        dMC.elem(find(dMC > 0.95 || dMC < 0.05)).zeros();
+
+        // Interpolation function G
+        G = pow(Psi,6)%(10*Psi%Psi-15*Psi+6);
+        dGPsi = pow(Psi,5)%(80*Psi%Psi-105*Psi+36);
+
 
         // Derivatives order parameter
         cube dxC = gradx(C,h);
@@ -213,9 +268,12 @@ int main(int argc, const char * argv[]) {
                                                             dyPsiOvPsi(span(2,dend-2),span(2,dend-2),span(2,dend-2))%dyk +
                                                             dzPsiOvPsi(span(2,dend-2),span(2,dend-2),span(2,dend-2))%dzk) +
                     M(span(4,end-4),span(4,end-4),span(4,end-4))%d2x_3D(k,h) +
-                                                            (dxM(span(2,dend-2),span(2,dend-2),span(2,dend-2))%dxk +
-                                                            dyM(span(2,dend-2),span(2,dend-2),span(2,dend-2))%dyk +
-                                                            dzM(span(2,dend-2),span(2,dend-2),span(2,dend-2))%dzk);
+    ((Mob*(dMC(span(4,end-4),span(4,end-4),span(4,end-4)))%(dxC(span(2,dend-2),span(2,dend-2),span(2,dend-2)))%(G(span(4,end-4),span(4,end-4),span(4,end-4)))) +
+    (M(span(4,end-4),span(4,end-4),span(4,end-4))%(dGPsi(span(4,end-4),span(4,end-4),span(4,end-4)))%(dxPsi(span(2,dend-2),span(2,dend-2),span(2,dend-2))))%dxk +
+    Mob*(dMC(span(4,end-4),span(4,end-4),span(4,end-4)))%(dyC(span(2,dend-2),span(2,dend-2),span(2,dend-2)))%(G(span(4,end-4),span(4,end-4),span(4,end-4))) +
+    (M(span(4,end-4),span(4,end-4),span(4,end-4))%(dGPsi(span(4,end-4),span(4,end-4),span(4,end-4)))%(dyPsi(span(2,dend-2),span(2,dend-2),span(2,dend-2))))%dyk +
+    Mob*(dMC(span(4,end-4),span(4,end-4),span(4,end-4)))%(dzC(span(2,dend-2),span(2,dend-2),span(2,dend-2)))%(G(span(4,end-4),span(4,end-4),span(4,end-4))) +
+    (M(span(4,end-4),span(4,end-4),span(4,end-4))%(dGPsi(span(4,end-4),span(4,end-4),span(4,end-4)))%(dzPsi(span(2,dend-2),span(2,dend-2),span(2,dend-2))))%dzk);
 
 	// Forward euler integration
 	C(span(4,end-4),span(4,end-4),span(4,end-4)) = C(span(4,end-4),span(4,end-4),span(4,end-4)) + dt*dCdt;
@@ -244,19 +302,17 @@ int main(int argc, const char * argv[]) {
         cout << "Ft:  " << Ft[keepFfunc -1] << std::endl;
 
 }
+    //if(iTT%1000 == 0) {
+
+    //print3Dmat(C, "modGradPsi.dat", 97);
 
 
+//}
 
 
 } // End of for loop
 
 
-/*cout << "Writing output...  " << std::endl;
-Ft_arma = conv_to<vec>::from(Ft);
-Ft_arma.save(localFolder + "Ft.dat", raw_ascii);
-vec Mtheta = conv_to<vec>::from(MeasuredTheta);
-Mtheta.save(localFolder + "MTheta.dat", raw_ascii);
-C.save(localFolder + "Cend.dat", raw_ascii);*/
 
 
 
