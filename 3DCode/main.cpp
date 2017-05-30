@@ -2,12 +2,12 @@
     Armadillo  project
     Based on the linear algebra C++ Library Armadillo:
     Armadillo (http://arma.sourceforge.net/)
-
     Created by Salvatore De Angelis on 1/9/17.
     Copyright © 2017 Salvatore De Angelis. All rights reserved.
 */
 
 #include <iostream>
+#include <string> 
 #include <armadillo>
 
 using namespace arma;
@@ -70,6 +70,27 @@ T convToDeg(T rad_angle) {
 
 }
 
+/// Surface mobility function
+
+cube SM(T Mob, cube C, cube Psi) {
+
+    cube M = zeros(size(Psi));
+        for(int i = 0; i < Psi.n_rows; i++){
+            for(int j = 0; j < Psi.n_cols; j++){
+                for(int k = 0; k < Psi.n_slices; k++){
+                    if (C(i,j,k) > 0.1 && C(i,j,k) < 0.9){
+
+                M(i,j,k) = Mob*C(i,j,k)*C(i,j,k)*(1-C(i,j,k)*C(i,j,k))*pow(Psi(i,j,k),6)*((10*Psi(i,j,k)*Psi(i,j,k))*(10*Psi(i,j,k)*Psi(i,j,k))-15*Psi(i,j,k)+6);
+
+                }// End if
+            } // End for depth
+        } // End for cols
+    } // End for rows
+
+    return (M);
+
+}
+
 /// Print header function
 void printHeader(lint& N, T& delta, std::string& def_str) {
 
@@ -91,28 +112,31 @@ void printHeader(lint& N, T& delta, std::string& def_str) {
 
  }
 
-
 int main(int argc, const char * argv[]) {
 
+    // Create directory related to delta
+    std::string def_str;
 
-    // Parameters of simulation
-    if (argc != 2) {
+    // Making directory of output
+    def_str.append("mkdir output");
+    system(def_str.c_str());
 
-        cout <<"Wrong number of parameters!!!" << std::endl;
-        cout <<"Required: (T) delta" << std::endl;
+    // Local (in loop) output folder
+    std::string outputFolder;
+    outputFolder.append("output/");
+    // localFolder.append(str1); localFolder.append(argv[1]);
+    // localFolder.append("_"); localFolder.append(argv[2]); localFolder.append("/");
 
-        return -1;
+    // Print important parameters
+    // printHeader(N,delta,localFolder);
+    // printHeader(localFolder);
 
-    }
 
     cube geom;
     std::string nameGeom = "geom.bin";
 
     geom.load(nameGeom,arma::raw_binary);
     geom.reshape(101,101,101);
-
-    // test
-    print3Dmat(geom, "test.dat", 101);
 
     cube Cini;
     std::string nameCini = "Cini.bin";
@@ -150,7 +174,7 @@ int main(int argc, const char * argv[]) {
 
 
     // Compute the gradient of Psi and the term dPsi/Psi
-    cube invPsi = 1./(Psi+1);
+    cube invPsi = 1./Psi;
     cube dxPsi = gradx(Psi,h);
     cube dyPsi = grady(Psi,h);
     cube dzPsi = gradz(Psi,h);
@@ -158,13 +182,18 @@ int main(int argc, const char * argv[]) {
     cube dxPsiOvPsi = invPsi(span(2,end-2),span(2,end-2),span(2,end-2))%dxPsi;
     cube dyPsiOvPsi = invPsi(span(2,end-2),span(2,end-2),span(2,end-2))%dyPsi;
     cube dzPsiOvPsi = invPsi(span(2,end-2),span(2,end-2),span(2,end-2))%dzPsi;
-    invPsi.save("invPsi.dat", raw_ascii);
-    dxPsi.save("dxPsi.dat", raw_ascii);
-    modGradPsi.save("modGradPsi.dat", raw_ascii);
-    dxPsiOvPsi.save("dxPsiOvPsi.dat", raw_ascii);
 
-    // Impose mobility
-    cube M = ones(size(Cini));
+    print3Dmat(invPsi, outputFolder + "invPsi.dat", 101);
+    print3Dmat(dxPsi, outputFolder + "dxPsi.dat", 97);
+    print3Dmat(dxPsiOvPsi, outputFolder + "dxPsiOvPsi.dat", 97);
+    print3Dmat(modGradPsi, outputFolder + "modGradPsi.dat", 97);
+
+    // Mobility
+    cube M(size(Cini));
+    cube dMC(size(Cini));
+    T Mob = 6.;
+    cube G(size(Cini));
+    cube dGPsi(size(Cini));
 
     // Solver
     lint keepFfunc = 0;
@@ -189,10 +218,17 @@ int main(int argc, const char * argv[]) {
         F = (W/2)*C%C%(1-C)%(1-C);
         dF = W*(1-C)%(1-2*C)%C;
 
+        // Mobility function
+        M = SM(Mob,C,Psi);
+
         // Derivatives of mobility
-        cube dxM = gradx(M,h);
-        cube dyM = grady(M,h);
-        cube dzM = gradz(M,h);
+        dMC = 2*C-4*C%C%C;
+        dMC.elem(find(dMC > 0.95 || dMC < 0.05)).zeros();
+
+        // Interpolation function G
+        G = pow(Psi,6)%(10*Psi%Psi-15*Psi+6);
+        dGPsi = pow(Psi,5)%(80*Psi%Psi-105*Psi+36);
+
 
         // Derivatives order parameter
         cube dxC = gradx(C,h);
@@ -216,9 +252,12 @@ int main(int argc, const char * argv[]) {
                                                             dyPsiOvPsi(span(2,dend-2),span(2,dend-2),span(2,dend-2))%dyk +
                                                             dzPsiOvPsi(span(2,dend-2),span(2,dend-2),span(2,dend-2))%dzk) +
                     M(span(4,end-4),span(4,end-4),span(4,end-4))%d2x_3D(k,h) +
-                                                            (dxM(span(2,dend-2),span(2,dend-2),span(2,dend-2))%dxk +
-                                                            dyM(span(2,dend-2),span(2,dend-2),span(2,dend-2))%dyk +
-                                                            dzM(span(2,dend-2),span(2,dend-2),span(2,dend-2))%dzk);
+    ((Mob*(dMC(span(4,end-4),span(4,end-4),span(4,end-4)))%(dxC(span(2,dend-2),span(2,dend-2),span(2,dend-2)))%(G(span(4,end-4),span(4,end-4),span(4,end-4)))) +
+    (M(span(4,end-4),span(4,end-4),span(4,end-4))%(dGPsi(span(4,end-4),span(4,end-4),span(4,end-4)))%(dxPsi(span(2,dend-2),span(2,dend-2),span(2,dend-2))))%dxk +
+    Mob*(dMC(span(4,end-4),span(4,end-4),span(4,end-4)))%(dyC(span(2,dend-2),span(2,dend-2),span(2,dend-2)))%(G(span(4,end-4),span(4,end-4),span(4,end-4))) +
+    (M(span(4,end-4),span(4,end-4),span(4,end-4))%(dGPsi(span(4,end-4),span(4,end-4),span(4,end-4)))%(dyPsi(span(2,dend-2),span(2,dend-2),span(2,dend-2))))%dyk +
+    Mob*(dMC(span(4,end-4),span(4,end-4),span(4,end-4)))%(dzC(span(2,dend-2),span(2,dend-2),span(2,dend-2)))%(G(span(4,end-4),span(4,end-4),span(4,end-4))) +
+    (M(span(4,end-4),span(4,end-4),span(4,end-4))%(dGPsi(span(4,end-4),span(4,end-4),span(4,end-4)))%(dzPsi(span(2,dend-2),span(2,dend-2),span(2,dend-2))))%dzk);
 
 	// Forward euler integration
 	C(span(4,end-4),span(4,end-4),span(4,end-4)) = C(span(4,end-4),span(4,end-4),span(4,end-4)) + dt*dCdt;
@@ -247,20 +286,16 @@ int main(int argc, const char * argv[]) {
         cout << "Ft:  " << Ft[keepFfunc -1] << std::endl;
 
 }
+     	if(iTT%10 == 0) {
 
+    	  print3Dmat(C, "output/C_" + std::to_string(iTT) + ".dat", 101);
 
+	}
 
 
 } // End of for loop
 
 
-/*cout << "Writing output...  " << std::endl;
-
-Ft_arma = conv_to<vec>::from(Ft);
-Ft_arma.save(localFolder + "Ft.dat", raw_ascii);
-vec Mtheta = conv_to<vec>::from(MeasuredTheta);
-Mtheta.save(localFolder + "MTheta.dat", raw_ascii);
-C.save(localFolder + "Cend.dat", raw_ascii);*/
 
 
 

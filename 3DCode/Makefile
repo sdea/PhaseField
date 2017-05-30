@@ -5,7 +5,7 @@
 # Compiler
 # g++
 
-CXX = g++
+CXX = g++ -std=c++11
 
 # Series of useful tokens for compilation and linking
 LIBTOKEN = -L
