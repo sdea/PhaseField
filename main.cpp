@@ -2,7 +2,6 @@
     Armadillo  project
     Based on the linear algebra C++ Library Armadillo:
     Armadillo (http://arma.sourceforge.net/)
-
     Created by Salvatore De Angelis on 1/9/17.
     Copyright © 2017 Salvatore De Angelis. All rights reserved.
 */
@@ -63,7 +62,6 @@ cube gradz(cube const& C, T const& h) {
 }
 
 
-
 /// Covert radiant to deg
 T convToDeg(T rad_angle) {
 
@@ -84,6 +82,14 @@ void printHeader(lint& N, T& delta, std::string& def_str) {
     cout << "Writing output in:  " << def_str << std::endl;
 }
 
+ void print3Dmat(cube& matrix, std::string filename, int dim) {
+
+        cube exp_geom = reshape(matrix, 1,1, dim*dim*dim);
+        mat col_geom = exp_geom.slice(2);
+        exp_geom.save(filename, arma::raw_ascii);
+
+ }
+
 
 int main(int argc, const char * argv[]) {
 
@@ -103,7 +109,6 @@ int main(int argc, const char * argv[]) {
 
     geom.load(nameGeom,arma::raw_binary);
     geom.reshape(101,101,101);
-    //geom.save("geom.mat", arma_ascii,101);
 
     cube Cini;
     std::string nameCini = "Cini.bin";
@@ -141,7 +146,7 @@ int main(int argc, const char * argv[]) {
 
 
     // Compute the gradient of Psi and the term dPsi/Psi
-    cube invPsi = 1./(Psi+1);
+    cube invPsi = 1./Psi;
     cube dxPsi = gradx(Psi,h);
     cube dyPsi = grady(Psi,h);
     cube dzPsi = gradz(Psi,h);
@@ -149,11 +154,11 @@ int main(int argc, const char * argv[]) {
     cube dxPsiOvPsi = invPsi(span(2,end-2),span(2,end-2),span(2,end-2))%dxPsi;
     cube dyPsiOvPsi = invPsi(span(2,end-2),span(2,end-2),span(2,end-2))%dyPsi;
     cube dzPsiOvPsi = invPsi(span(2,end-2),span(2,end-2),span(2,end-2))%dzPsi;
-    cout << "dxPsi: " << size(dxPsi) << endl;
-    invPsi.save("invPsi.dat", raw_ascii);
-    dxPsi.save("dxPsi.dat", raw_ascii);
-    modGradPsi.save("modGradPsi.dat", raw_ascii);
-    dxPsiOvPsi.save("dxPsiOvPsi.dat", raw_ascii);
+
+    print3Dmat(invPsi, "invPsi.dat", 101);
+    print3Dmat(dxPsi, "dxPsi.dat", 97);
+    print3Dmat(dxPsiOvPsi, "dxPsiOvPsi.dat", 97);
+    print3Dmat(modGradPsi, "modGradPsi.dat", 97);
 
     // Impose mobility
     cube M = ones(size(Cini));
@@ -170,8 +175,6 @@ int main(int argc, const char * argv[]) {
     vec Ft_arma;
     std::vector<T> Ft;
 
-
-    // Max iteration
     T numIt = 5000.;
     lint maxIter = (lint) (numIt/dt);
 
@@ -248,10 +251,13 @@ int main(int argc, const char * argv[]) {
 } // End of for loop
 
 
-cout << "Writing output...  " << std::endl;
-
+/*cout << "Writing output...  " << std::endl;
 Ft_arma = conv_to<vec>::from(Ft);
-Ft_arma.save("Ft.dat", raw_ascii);
+Ft_arma.save(localFolder + "Ft.dat", raw_ascii);
+vec Mtheta = conv_to<vec>::from(MeasuredTheta);
+Mtheta.save(localFolder + "MTheta.dat", raw_ascii);
+C.save(localFolder + "Cend.dat", raw_ascii);*/
+
 
 
 } // End of main
